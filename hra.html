@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Plague s.r.o.</title>
+    <style>
+        body {
+            font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+        }
+
+        #playground {
+            border: 1px solid #a0a0a0;
+            width: 600px;
+            height: 500px;
+            position: relative;
+        }
+        #world {
+            position: absolute;
+            bottom: 0px;
+        }
+        #overlay {
+            position: absolute;
+            bottom: 0px;
+            height: 392px;
+            background-color: rgba(255,0,0,.5);
+        }
+
+        #go {
+            position: relative;
+            top: 200px;
+            margin: 0 auto;
+            padding: 10px;
+            width:200px;
+            text-align: center;
+            border: 1px solid red;
+            background-color: #a00000;;
+            color: #fff;
+        }
+
+        .vir {
+            position: absolute;
+            background: url(Corona.png) no-repeat;
+            background-size: cover;
+            width: 80px;
+            height: 80px;
+            z-index: 2;
+        }
+        #ch {
+            position: absolute;
+            background: url(cr.png) no-repeat;
+            background-size: cover;
+            width: 50px;
+            height: 50px;
+            pointer-events: none;
+            /*z-index: 200;*/
+        }
+    </style>
+</head>
+<body>
+<p>
+<div id='playground'>
+        <div id="ch" style="top:150px;left:200px;"></div>
+        <div id="info">
+            <button id="new">New Game</button>
+            <button id="restart">Restart</button>
+            <form action="">
+                <input type="radio" name="in" id="keyboard"> Keyboard | <input type="radio" name="in" id="mouse" checked> Mouse
+            </form>
+            <h4>Score: 0 | Virusses missed: 0</h4>
+
+        </div>
+        <div id="overlay" style="width: 0px"></div>
+        <div id=go style="display: none">GAME OVER</div>
+    </div>
+</p>
+<script>
+
+    document.querySelector("#overlay").addEventListener("click", e => e, true);
+
+    function randomInt(min, max) {
+        return min + Math.floor((max - min) * Math.random());
+    }
+    class Player {
+        constructor() {
+            this.score = 0;
+            this.missed = 0;
+            this.x = 200;
+            this.y = 150;
+        };
+
+        getX() {
+            return this.x;
+        }
+
+        getY() {
+            return this.y;
+        }
+
+        setX(x) {
+            this.x = x;
+        }
+
+        setY(y) {
+            this.y = y;
+        }
+    };
+
+    class Virus {
+        constructor(game) {
+            this.game = game;
+            this.x = randomInt(0, 600);
+            this.y = randomInt(80, 392);
+            this.cycles = 0;
+            this.element = null;
+        }
+
+        getSmashed(){
+            this.element.style.display = "none";
+            this.game.player.score++;
+
+        }
+
+        render() {
+            let corona = document.createElement("div");
+            corona.classList.add("vir");
+            corona.style.top = `${this.y}px`;
+            corona.style.left = `${this.x}px`;
+            this.element = corona;
+            corona.addEventListener("click", this.getSmashed.bind(this));
+            let elem = document.querySelector("#world");
+            elem.insertAdjacentElement("afterend", corona);
+        }
+
+        checkCycle() {
+            this.cycles++;
+            return this.cycles < 2;
+        }
+
+        disappear() {
+            let queriedViruses = [];
+            queriedViruses = document.querySelectorAll(".vir");
+            document.querySelector("#playground").removeChild(queriedViruses[queriedViruses.length-1]);
+            let overlay = document.querySelector("#overlay");
+            if (this.element.style.display !== "none") {
+                this.game.getWorld().addOverlay();
+                this.game.player.missed++;
+            }
+        }
+    };
+
+    class World {
+        constructor(game) {
+            this.missed = 0;
+            this.game = game;
+            this.player = game.getPlayer();
+            if(document.querySelector("#keyboard").checked) {
+                document.addEventListener("keydown", e => this.kbMove(e));
+            } else {
+                document.addEventListener("mousemove", e => this.mouseMove(e));
+            }
+            document.querySelector("#new").addEventListener("click", () => this.game.restart());
+            document.querySelector("#restart").addEventListener("click", () => this.game.restart());
+            this.width = 0;
+        }
+
+        addOverlay() {
+            let overlay = document.querySelector("#overlay");
+            this.width += 50;
+            if(this.width >= 600) {
+                this.game.gameOver();
+                overlay.style.width = 600 + "px";
+                return;
+            }
+            overlay.style.width = `${this.width}px`
+        }
+
+        mouseMove(e) {
+            console.log("mm")
+            let cursor = document.querySelector("#ch");
+            cursor.style.top = `${e.clientY - 25}px`;
+            cursor.style.left = `${e.clientX - 25}px`;
+        }
+
+        kbMove(e) {
+            if(e.target === document.querySelector("#new") || e.target === document.querySelector("#restart")) {
+                e.preventDefault();
+            }
+            if (e.key === 'a') {
+                if(this.player.getX() > 38) {
+                    this.player.setX(this.player.getX() - 10);
+
+                }
+            }
+            if (e.key === 'd') {
+                if(this.player.getX() < 583) {
+                    this.player.setX(this.player.getX() + 10);
+                }
+            }
+            if (e.key === 'w') {
+                if(this.player.getY() > 100) {
+                    this.player.setY(this.player.getY() - 10);
+                }
+            }
+            if (e.key === 's') {
+                if(this.player.getY() < 460) {
+                    this.player.setY(this.player.getY() + 10);
+                }
+            }
+            if (e.key === ' ') {
+                this.game.checkCollision();
+            }
+            let cursor = document.querySelector("#ch");
+            cursor.style.top = `${this.player.getY() - 25}px`;
+            cursor.style.left = `${this.player.getX() - 25}px`;
+        }
+
+        updateScore() {
+            document.querySelector("#info h4").innerHTML = `Score: ${this.player.score} | Virusses missed: ${this.player.missed}`;
+        }
+    };
+
+    class Game {
+        constructor() {
+            this.player = new Player();
+            this.world = new World(this);
+            this.viruses = [new Virus(this)];
+            this.interval = setInterval(this.tick.bind(this), 2000);
+        }
+
+        generateVirus() {
+            this.viruses.push(new Virus(this));
+        }
+
+        getWorld() {
+            return this.world;
+        }
+
+        getPlayer() {
+            return this.player;
+        }
+
+        tick() {
+            this.generateVirus();
+            for(let i = 0; i < this.viruses.length; i++) {
+                let virus = this.viruses[i];
+                if(virus.checkCycle()) {
+                    virus.render();
+                } else {
+                    virus.disappear();
+                    this.viruses.splice(i,1);
+                }
+            }
+            this.world.updateScore();
+        }
+
+        gameOver() {
+            clearInterval(this.interval);
+            document.querySelector("#go").style.display = "block";
+        }
+
+        checkCollision() {
+            for (let i = 0; i < this.viruses.length; i++) {
+                if(Math.abs(this.player.x - this.viruses[i].x) < 50 && Math.abs(this.player.y - this.viruses[i].y) < 50) {
+                       this.viruses[i].getSmashed();
+                }
+            }
+        }
+
+        restart() {
+            clearInterval(this.interval);
+            setTimeout(function () {
+            }, 3000);
+            this.player.score = 0;
+            this.world.width = 0;
+            this.player.missed = 0;
+            document.querySelector("#overlay").style.width = 0 + "px";
+            document.querySelector("#go").style.display = "none";
+            this.interval = setInterval(this.tick.bind(this), 2000);
+            if(document.querySelector("#keyboard").checked) {
+                document.addEventListener("keydown", e => this.world.kbMove(e));
+                document.removeEventListener("mousemove", e =>  this.world.mouseMove(e));
+            } else {
+                document.addEventListener("mousemove", e => this.world.mouseMove(e));
+                document.removeEventListener("keydown", e => this.world.kbMove(e));
+            }
+        }
+    };
+
+    function loadImage() {
+        return new Promise((resolve, reject) => {
+            let img = new Image();
+            img.addEventListener("load", () => resolve(img));
+            img.addEventListener("error", err => reject(err))
+            img.src = ("world-map.svg");
+            img.width = 600;
+            img.id = "world";
+        })
+    };
+
+    loadImage()
+        .then( img => document.querySelector("#info").insertAdjacentElement("afterend", img))
+        .catch(error => console.error("error"));
+    new Game();
+</script>
+</body>
+</html>
